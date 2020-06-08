@@ -1,0 +1,11 @@
+{ 
+"title"		:	"[ALSR] Optimization System", 
+"type"		:	"tool", 
+"tags"		:	[ "roleplay", "build" ], 
+"ignore"	: 
+[ 
+"*.psd", 
+"*.vcproj", 
+"*.svn*" 
+] 
+} 
