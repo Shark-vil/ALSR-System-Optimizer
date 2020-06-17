@@ -10,41 +10,40 @@ local Meta = {
 
         local EntToPlayerDistance = Ent:GetPos():Distance( Ply:GetPos() );
 
-        if ( DisableDetectorDistance ~= nil and EntToPlayerDistance <= DisableDetectorDistance ) then
+        if ( EntToPlayerDistance <= DisableDetectorDistance ) then
             return true;
         end;
 
-        if ( EntToPlayerDistance > PlayerViewRadius ) then
-
-            local PlayerAimVector = Ply:GetAimVector();
-            local PlayerId = Ply:UniqueID();
-            local EntityId = Ent:EntIndex();
-
-            if ( self.EntitiesCaches[ PlayerId ] ~= nil and self.EntitiesCaches[ PlayerId ][ EntityId ] ~= nil ) then
-                if ( self.EntitiesCaches[ PlayerId ][ EntityId ][ 'PlayerAimVector' ] == PlayerAimVector ) then
-                    return self.EntitiesCaches[ PlayerId ][ EntityId ][ 'Boolean' ];
-                end;
-            end;
-
-            local DirectionAngle = math.pi / PlayerViewRadius;
-            local EntityAimVector = Ent:GetPos() - Ply:GetShootPos();
-            local PlayerDot = PlayerAimVector:Dot( EntityAimVector ) / EntityAimVector:Length();
-            local DotResult = PlayerDot < DirectionAngle;
-
-            self.EntitiesCaches[ PlayerId ] = self.EntitiesCaches[ PlayerId ] or {};
-            self.EntitiesCaches[ PlayerId ][ EntityId ] = self.EntitiesCaches[ PlayerId ][ EntityId ] or {};
-            self.EntitiesCaches[ PlayerId ][ EntityId ][ 'PlayerAimVector' ] = PlayerAimVector;
-
-            if ( DotResult == true or EntToPlayerDistance > PlayerViewDistance ) then
-                self.EntitiesCaches[ PlayerId ][ EntityId ][ 'Boolean' ] = false;
-            else
-                self.EntitiesCaches[ PlayerId ][ EntityId ][ 'Boolean' ] = true;
-            end
-
-            return self.EntitiesCaches[ PlayerId ][ EntityId ][ 'Boolean' ];
+        if ( EntToPlayerDistance > PlayerViewDistance ) then
+            return false;
         end;
 
-        return true;
+        local PlayerAimVector = Ply:GetAimVector();
+        local PlayerId = Ply:UniqueID();
+        local EntityId = Ent:EntIndex();
+
+        if ( self.EntitiesCaches[ PlayerId ] ~= nil and self.EntitiesCaches[ PlayerId ][ EntityId ] ~= nil ) then
+            if ( self.EntitiesCaches[ PlayerId ][ EntityId ][ 'PlayerAimVector' ] == PlayerAimVector ) then
+                return self.EntitiesCaches[ PlayerId ][ EntityId ][ 'Boolean' ];
+            end;
+        end;
+
+        local DirectionAngle = math.pi / PlayerViewRadius;
+        local EntityDifference = Ent:GetPos() - Ply:EyePos();
+        local EntityDifferenceDot = PlayerAimVector:Dot( EntityDifference ) / EntityDifference:Length();
+        local IsView = EntityDifferenceDot < DirectionAngle;
+
+        self.EntitiesCaches[ PlayerId ] = self.EntitiesCaches[ PlayerId ] or {};
+        self.EntitiesCaches[ PlayerId ][ EntityId ] = self.EntitiesCaches[ PlayerId ][ EntityId ] or {};
+        self.EntitiesCaches[ PlayerId ][ EntityId ][ 'PlayerAimVector' ] = PlayerAimVector;
+
+        if ( IsView == true or EntToPlayerDistance > PlayerViewDistance ) then
+            self.EntitiesCaches[ PlayerId ][ EntityId ][ 'Boolean' ] = false;
+        else
+            self.EntitiesCaches[ PlayerId ][ EntityId ][ 'Boolean' ] = true;
+        end
+
+        return self.EntitiesCaches[ PlayerId ][ EntityId ][ 'Boolean' ];
 
     end,
 

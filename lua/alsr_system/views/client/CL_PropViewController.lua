@@ -2,6 +2,7 @@ if ( SERVER ) then
     return;
 end;
 
+local CacheProps = {};
 local IgnoreEntityList = {};
 
 net.Receive( 'Net.DrawPropOcclusion.PropViewController', function( Length )
@@ -64,6 +65,7 @@ net.Receive( 'Net.PlayerSpawnedEntity.PropViewController', function( Length )
     local Ent = Entity( net.ReadInt( 32 ) );
     local Ply = LocalPlayer();
 
+    -- table.insert( CacheProps, Ent );
     Ent.NoDraw = Ent.NoDraw or false;
 
 end );

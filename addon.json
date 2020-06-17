@@ -6,6 +6,10 @@
 [ 
 "*.psd", 
 "*.vcproj", 
-"*.svn*" 
+"*.svn*",
+"LICENSE",
+".gitattributes",
+"vs-code-project.code-workspace",
+"*.git*"
 ] 
 } 
