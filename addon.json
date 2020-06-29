@@ -8,6 +8,7 @@
 "*.vcproj", 
 "*.svn*",
 "LICENSE",
+"README.md",
 ".gitattributes",
 "vs-code-project.code-workspace",
 "*.git*"

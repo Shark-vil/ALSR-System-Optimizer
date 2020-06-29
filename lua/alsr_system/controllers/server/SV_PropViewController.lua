@@ -1,3 +1,4 @@
+util.AddNetworkString( 'Net.Alsr.SystemAuthority' );
 util.AddNetworkString( 'Net.OnPhysgunPickup.PropViewController' );
 util.AddNetworkString( 'Net.PhysgunDrop.PropViewController' );
 util.AddNetworkString( 'Net.OnPhysgunFreeze.PropViewController' );
@@ -9,8 +10,14 @@ util.AddNetworkString( 'Net.DrawPropOcclusion.PropViewController' );
 CreateConVar( "alsr_enable", 1, FCVAR_ARCHIVE, 
     "Enable or disable alsr system." );
 
+CreateConVar( "alsr_server_only", 1, FCVAR_ARCHIVE, 
+    "Enable server-side optimization (1) or client-side (0)" );
+
 CreateConVar( "alsr_check_second_update", 0.5, FCVAR_ARCHIVE, 
     "Visibility check refresh rate." );
+
+CreateConVar( "alsr_players_calcualtion_update", 1, FCVAR_ARCHIVE, 
+    "Frequency of updating the number of players for calculations on the server." );
     
 CreateConVar( "alsr_player_view_radius", 90, FCVAR_ARCHIVE, 
     "The radius of view that the detection covers." );
@@ -206,6 +213,8 @@ hook.Add( 'PlayerDisconnected', 'ALSR.Hook.PlayerDisconnected.PropViewController
 -- @param Ply the player entity
 local function PlayerSpawn( Ply )
 
+    if ( Ply:IsBot() ) then return; end;
+
     Ply.ALSR = Ply.ALSR or {};
     Ply.ALSR.Entities = Ply.ALSR.Entities or {};
 
@@ -242,6 +251,10 @@ local function PlayerSpawn( Ply )
 
             net.Start( 'Net.PlayerFinalizateSpawn.PropViewController' );
             net.Send( Ply );
+
+            -- net.Start( 'Net.Alsr.SystemAuthority' );
+            -- net.WriteInt( GetConVar( "alsr_server_only" ):GetInt(), 32 );
+            -- net.Send( Ply );
 
             Ply:PrintMessage( HUD_PRINTTALK, '[ALSR] Prop view controller is initializate!' );
         end );
@@ -286,72 +299,74 @@ local function DrawPropOcclusion()
 
     if ( ALSR.Occlusion ~= nil ) then
 
-        for _, Ply in pairs( PlayerList ) do
-            for EntPly, EntTable in pairs( CacheProps ) do
+        local Ply = ALSR.Players:GetCurrentPlayer();
 
-                for i = 1, table.Count( EntTable ) do
+        if ( Ply == nil ) then return; end;
 
-                    local Ent = EntTable[ i ];
-                    if ( Ent == nil or not IsValid( Ent ) ) then
-                        table.remove( CacheProps[ EntPly ], i );
-                        break;
+        for EntPly, EntTable in pairs( CacheProps ) do
+
+            for i = 1, table.Count( EntTable ) do
+
+                local Ent = EntTable[ i ];
+                if ( Ent == nil or not IsValid( Ent ) ) then
+                    table.remove( CacheProps[ EntPly ], i );
+                    break;
+                end;
+                
+                if ( Ply.ALSR ~= nil and Ply.ALSR.FirstSpawn and Ply:Alive() ) then
+
+                    local PlayersOcclusionIsTarget = false;
+
+                    local IsTarget = ALSR.Occlusion:EntityIsTarget( Ply, Ent, PlayerViewRadius, PlayerViewDistance, PlayerDisableDetectorDistance );
+                    
+                    if ( IsTarget ~= nil and IsTarget == true ) then
+                        PlayersOcclusionIsTarget = true;
                     end;
                     
-                    if ( Ply.ALSR ~= nil and Ply.ALSR.FirstSpawn and not Ply:IsBot() and Ply:Alive() ) then
+                    local EntityIndex = Ent:EntIndex();
 
-                        local PlayersOcclusionIsTarget = false;
+                    if ( PlayersOcclusionIsTarget ) then
+                        for Key, EntTab in pairs( Ply.ALSR.Entities ) do
+                            if ( EntTab.Index == EntityIndex and EntTab.NoDraw and not table.HasValue( IgnoreEntityList, Ent ) ) then
+                                Ply.ALSR.Entities[ Key ].NoDraw = false;
 
-                        local IsTarget = ALSR.Occlusion:EntityIsTarget( Ply, Ent, PlayerViewRadius, PlayerViewDistance, PlayerDisableDetectorDistance );
-                        
-                        if ( IsTarget ~= nil and IsTarget == true ) then
-                            PlayersOcclusionIsTarget = true;
-                        end;
-                        
-                        local EntityIndex = Ent:EntIndex();
-
-                        if ( PlayersOcclusionIsTarget ) then
-                            for Key, EntTab in pairs( Ply.ALSR.Entities ) do
-                                if ( EntTab.Index == EntityIndex and EntTab.NoDraw and not table.HasValue( IgnoreEntityList, Ent ) ) then
-                                    Ply.ALSR.Entities[ Key ].NoDraw = false;
-
-                                    if ( PhysicsConstraint ) then
-                                        ALSR.Occlusion:EntityEnablePhysics( Ent, true );
-                                    end;
-
-                                    net.Start( 'Net.DrawPropOcclusion.PropViewController' );
-                                    net.WriteInt( EntityIndex, 32 );
-                                    net.WriteBool( false );
-                                    net.Send( Ply );
-
-                                    break;
+                                if ( PhysicsConstraint ) then
+                                    ALSR.Occlusion:EntityEnablePhysics( Ent, true );
                                 end;
-                            end;
-                        else
-                            for Key, EntTab in pairs( Ply.ALSR.Entities ) do
-                                if ( EntTab.Index == EntityIndex and not EntTab.NoDraw and not table.HasValue( IgnoreEntityList, Ent ) ) then
-                                    Ply.ALSR.Entities[ Key ].NoDraw = true;
 
-                                    if ( PhysicsConstraint ) then
-                                        ALSR.Occlusion:EntityEnablePhysics( Ent, false );
-                                    end;
+                                net.Start( 'Net.DrawPropOcclusion.PropViewController' );
+                                net.WriteInt( EntityIndex, 32 );
+                                net.WriteBool( false );
+                                net.Send( Ply );
 
-                                    net.Start( 'Net.DrawPropOcclusion.PropViewController' );
-                                    net.WriteInt( EntityIndex, 32 );
-                                    net.WriteBool( true );
-                                    net.Send( Ply );
-
-                                    break;
-                                end;
+                                break;
                             end;
                         end;
-
                     else
-                        break;
+                        for Key, EntTab in pairs( Ply.ALSR.Entities ) do
+                            if ( EntTab.Index == EntityIndex and not EntTab.NoDraw and not table.HasValue( IgnoreEntityList, Ent ) ) then
+                                Ply.ALSR.Entities[ Key ].NoDraw = true;
+
+                                if ( PhysicsConstraint ) then
+                                    ALSR.Occlusion:EntityEnablePhysics( Ent, false );
+                                end;
+
+                                net.Start( 'Net.DrawPropOcclusion.PropViewController' );
+                                net.WriteInt( EntityIndex, 32 );
+                                net.WriteBool( true );
+                                net.Send( Ply );
+
+                                break;
+                            end;
+                        end;
                     end;
 
+                else
+                    break;
                 end;
 
             end;
+
         end;
 
     end;
@@ -360,8 +375,12 @@ end;
 
 --- Stops the system.
 local function StopSystem()
-    if ( timer.Exists( "Timer.DrawPropOcclusion.PropViewController" ) ) then
-        timer.Stop( "Timer.DrawPropOcclusion.PropViewController" );
+    if ( timer.Exists( "ALSR_Timer.DrawPropOcclusion.PropViewController" ) ) then
+        timer.Stop( "ALSR_Timer.DrawPropOcclusion.PropViewController" );
+    end;
+
+    if ( timer.Exists( "ALSR_Timer.Players.Calculation" ) ) then
+        timer.Stop( "ALSR_Timer.Players.Calculation" );
     end;
 
     for EntPly, EntTable in pairs( CacheProps ) do
@@ -390,8 +409,15 @@ local function StartSystem()
     PlayerViewDistance = GetConVar( "alsr_player_view_distance" ):GetFloat();
     PlayerDisableDetectorDistance = GetConVar( "alsr_player_disable_detector_distance" ):GetFloat();
 
-    timer.Create( "Timer.DrawPropOcclusion.PropViewController", 
+    timer.Create( "ALSR_Timer.DrawPropOcclusion.PropViewController", 
         GetConVar( "alsr_check_second_update" ):GetFloat(), 0, DrawPropOcclusion );
+
+    timer.Create( "ALSR_Timer.Players.Calculation",
+        GetConVar( "alsr_player_calcualtion_update" ):GetFloat(), 0,
+        function()
+            ALSR.Players:Calculation( PlayerList );
+        end
+    );
 end;
 
 --- Console command to start the system.
@@ -421,6 +447,16 @@ local function Cmd_AlsrSystemStop( ply, cmd, args )
     timer.Simple( 1, StopSystem );
 end;
 concommand.Add( "alsr_system_stop", Cmd_AlsrSystemStop );
+
+--- Console command to reboot the system.
+-- @param Ply the player entity
+-- @param Cmd the console command name
+-- @param Args the console command arguments
+local function Cmd_AlsrSystemReload( ply, cmd, args )
+    ply:ConCommand( "alsr_system_stop" );
+    ply:ConCommand( "alsr_system_start" );
+end;
+concommand.Add( "alsr_system_reload", Cmd_AlsrSystemReload );
 
 --[[
 --  ==========================================
