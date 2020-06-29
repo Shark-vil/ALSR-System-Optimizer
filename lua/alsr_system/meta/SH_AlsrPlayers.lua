@@ -9,7 +9,6 @@ local Meta = {
         self.player_list = PlayerList;
 
         self.player_count = table.Count( self.player_list );
-        self.current_player_index = self.current_player_index + 1;
 
         if ( self.current_player_index > self.player_count ) then
             self.current_player_index = 1;
@@ -24,6 +23,14 @@ local Meta = {
     GetCurrentPlayer = function( self )        
         return self.player_list[ self.current_player_index ];
     end,
+    GetNextPlayer = function( self )       
+        self.current_player_index =  self.current_player_index + 1;
+        if ( self.current_player_index > self.player_count ) then
+            self.current_player_index = 1;
+        end;
+
+        return self.player_list[ self.current_player_index ];
+    end
 };
 
 Meta.__index = Meta;

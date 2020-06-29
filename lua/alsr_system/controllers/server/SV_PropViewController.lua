@@ -6,6 +6,7 @@ util.AddNetworkString( 'Net.PlayerSpawnedEntity.PropViewController' );
 util.AddNetworkString( 'Net.PostCleanupMap.PropViewController' );
 util.AddNetworkString( 'Net.PlayerFinalizateSpawn.PropViewController' );
 util.AddNetworkString( 'Net.DrawPropOcclusion.PropViewController' );
+util.AddNetworkString( 'Net.EntityRemoved.PropViewController' );
 
 CreateConVar( "alsr_enable", 1, FCVAR_ARCHIVE, 
     "Enable or disable alsr system." );
@@ -13,10 +14,10 @@ CreateConVar( "alsr_enable", 1, FCVAR_ARCHIVE,
 CreateConVar( "alsr_server_only", 1, FCVAR_ARCHIVE, 
     "Enable server-side optimization (1) or client-side (0)" );
 
-CreateConVar( "alsr_check_second_update", 0.5, FCVAR_ARCHIVE, 
+CreateConVar( "alsr_visibility_delay", 0.2, FCVAR_ARCHIVE, 
     "Visibility check refresh rate." );
 
-CreateConVar( "alsr_players_calcualtion_update", 1, FCVAR_ARCHIVE, 
+CreateConVar( "alsr_players_calcualtion_delay", 1, FCVAR_ARCHIVE, 
     "Frequency of updating the number of players for calculations on the server." );
     
 CreateConVar( "alsr_player_view_radius", 90, FCVAR_ARCHIVE, 
@@ -31,6 +32,8 @@ CreateConVar( "alsr_player_disable_detector_distance", 500, FCVAR_ARCHIVE,
 CreateConVar( "alsr_physics_constraint", 0, FCVAR_ARCHIVE, 
     "Enable physics constraint. (1 - Enable, 0 - Disable)" );
 
+-- Is server rendering authority
+local IsServerOnly = false;
 -- List of all active players on the server.
 local PlayerList = {};
 -- List of ignored players during connection.
@@ -41,6 +44,12 @@ local IgnoreEntityList = {};
 local CacheProps = {};
 -- Variables
 local PhysicsConstraint, PlayerViewRadius, PlayerViewDistance, PlayerDisableDetectorDistance;
+
+if ( GetConVar( "alsr_server_only" ):GetInt() == 1 ) then
+    IsServerOnly = true;
+else
+    IsServerOnly = false;
+end;
 
 --- Adds a player-raised prop to the cache.
 -- @param Ply the player entity
@@ -169,6 +178,10 @@ local function EntityRemoved( Ent )
 
                 ALSR.Occlusion:EntityCacheRemove( EntityIndex );
 
+                net.Start( 'Net.EntityRemoved.PropViewController' );
+                net.WriteInt( EntityIndex, 32 );
+                net.SendOmit( PlayersIgnore );
+
                 table.remove( CacheProps[ Ply ], i );
                 break;
             end;
@@ -252,9 +265,12 @@ local function PlayerSpawn( Ply )
             net.Start( 'Net.PlayerFinalizateSpawn.PropViewController' );
             net.Send( Ply );
 
-            -- net.Start( 'Net.Alsr.SystemAuthority' );
-            -- net.WriteInt( GetConVar( "alsr_server_only" ):GetInt(), 32 );
-            -- net.Send( Ply );
+            net.Start( 'Net.Alsr.SystemAuthority' );
+            net.WriteBool( IsServerOnly );
+            net.WriteFloat( GetConVar( "alsr_player_view_radius" ):GetFloat() );
+            net.WriteFloat( GetConVar( "alsr_player_view_distance" ):GetFloat() );
+            net.WriteFloat( GetConVar( "alsr_player_disable_detector_distance" ):GetFloat() );
+            net.Send( Ply );
 
             Ply:PrintMessage( HUD_PRINTTALK, '[ALSR] Prop view controller is initializate!' );
         end );
@@ -277,14 +293,18 @@ local function PostCleanupMap()
             net.Send( Ply );
         end;
 
+        --[[
+            Код нихуя не делает, нужно будет исправить.
+        --]]
         local EntsList = {};
 
         for _, Ent in pairs( ents.GetAll() ) do
             local EntClass = Ent:GetClass();
-            if ( EntClass == 'prop_physics' or Ent:IsNPC() ) then
+            if ( EntClass == 'prop_physics' or Ent:IsNPC() or Ent:IsVehicle() ) then
                 table.insert( EntsList, Ent:EntIndex() );
             end;
         end;
+        -- ------------------------------------------
 
         ALSR.Occlusion:EntityCacheClear();
 
@@ -299,7 +319,7 @@ local function DrawPropOcclusion()
 
     if ( ALSR.Occlusion ~= nil ) then
 
-        local Ply = ALSR.Players:GetCurrentPlayer();
+        local Ply = ALSR.Players:GetNextPlayer();
 
         if ( Ply == nil ) then return; end;
 
@@ -410,10 +430,10 @@ local function StartSystem()
     PlayerDisableDetectorDistance = GetConVar( "alsr_player_disable_detector_distance" ):GetFloat();
 
     timer.Create( "ALSR_Timer.DrawPropOcclusion.PropViewController", 
-        GetConVar( "alsr_check_second_update" ):GetFloat(), 0, DrawPropOcclusion );
+        GetConVar( "alsr_visibility_delay" ):GetFloat(), 0, DrawPropOcclusion );
 
     timer.Create( "ALSR_Timer.Players.Calculation",
-        GetConVar( "alsr_player_calcualtion_update" ):GetFloat(), 0,
+        GetConVar( "alsr_players_calcualtion_delay" ):GetFloat(), 0,
         function()
             ALSR.Players:Calculation( PlayerList );
         end
@@ -467,6 +487,9 @@ concommand.Add( "alsr_system_reload", Cmd_AlsrSystemReload );
 --- Starts or does not start the system, based on the cvar parameters.
 local function SystemStartup()
     local Index = GetConVar( "alsr_enable" ):GetInt();
+
+    if ( not IsServerOnly ) then return; end;
+
     if ( Index == 1 ) then
         StartSystem();
     else
