@@ -1,4 +1,4 @@
-local version = "1.0";
+local version = "1.1";
 local filename = "alsr_version.txt";
 
 timer.Simple( 5, function()
@@ -30,17 +30,17 @@ timer.Simple( 5, function()
     local lang;
 
     local ru_lang = {
-        ['title'] = "SYSTEM UPDATE - ALSR Version 1.0",
+        ['title'] = "SYSTEM UPDATE - ALSR Version " .. version,
         ['html_button'] = "Перейти по ссылке",
         ['html_button_back'] = "Вернуться на главную",
-        ['link'] = "https://itpony.ru/alsr/update/1.0/ru.html"
+        ['link'] = "https://itpony.ru/alsr/update/".. version .. "/ru.html"
     };
 
     local en_lang = {
-        ['title'] = "SYSTEM UPDATE - ALSR Version 1.0",
+        ['title'] = "SYSTEM UPDATE - ALSR Version " .. version,
         ['html_button'] = "Go to the link",
         ['html_button_back'] = "Go back to the main",
-        ['link'] = "https://itpony.ru/alsr/update/1.0/en.html"
+        ['link'] = "https://itpony.ru/alsr/update/" .. version .. "/en.html"
     };
 
     if ( language.GetPhrase( "limit_physgun" ) == "Ограниченная физпушка" ) then
