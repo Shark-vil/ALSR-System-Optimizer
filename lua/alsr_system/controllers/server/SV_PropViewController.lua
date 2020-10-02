@@ -293,19 +293,6 @@ local function PostCleanupMap()
             net.Send( Ply );
         end;
 
-        --[[
-            Код нихуя не делает, нужно будет исправить.
-        --]]
-        local EntsList = {};
-
-        for _, Ent in pairs( ents.GetAll() ) do
-            local EntClass = Ent:GetClass();
-            if ( EntClass == 'prop_physics' or Ent:IsNPC() or Ent:IsVehicle() ) then
-                table.insert( EntsList, Ent:EntIndex() );
-            end;
-        end;
-        -- ------------------------------------------
-
         ALSR.Occlusion:EntityCacheClear();
 
         PrintMessage( HUD_PRINTTALK, '[ALSR] Prop view controller is reloading!' );

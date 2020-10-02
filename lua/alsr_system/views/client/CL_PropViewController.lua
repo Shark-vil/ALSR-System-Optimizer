@@ -157,8 +157,10 @@ end;
 local function PropsSortCalculation()
     local PlayerPos = LocalPlayer():GetPos();
     table.sort( CacheProps, 
-        function( a, b ) 
-            return a:GetPos():Distance( PlayerPos ) < b:GetPos():Distance( PlayerPos );
+        function( a, b )
+            if ( IsValid( a ) and IsValid( b ) ) then
+                return a:GetPos():Distance( PlayerPos ) < b:GetPos():Distance( PlayerPos );
+            end;
         end 
     );
 end;
