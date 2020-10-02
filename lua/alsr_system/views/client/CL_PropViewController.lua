@@ -183,7 +183,7 @@ local function Cmd_StartOrReloadSystem()
         timer.Create( "ALSR_Timer.DrawPropOcclusion.PropViewController", PropVisibilityDelay, 0, DrawPropOcclusion );
     end;
 end;
-concommand.Add( "alsr_client_system_start_or_reload", Cmd_StartOrReloadSystem, nil, "Activate or reboot the system.");
+concommand.Add( "alsr_client_system_start", Cmd_StartOrReloadSystem, nil, "Activate or reboot the system.");
 
 local function Cmd_StopSystem()
     if ( timer.Exists( "ALSR_Timer.PropsCalculation" ) ) then
